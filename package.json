@@ -1,0 +1,12 @@
+{
+  "name": "pet-ai-companion",
+  "version": "1.0.0",
+  "description": "宠物AI互动器 - 定制你的宠物AI伙伴，生成趣味剧情对话",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

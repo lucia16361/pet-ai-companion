@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐾 宠物AI互动器 - Pet AI Companion</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 导航栏 -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <span class="logo">🐾</span>
+        <span class="brand-text">宠物AI互动器</span>
+      </div>
+      <div class="nav-actions">
+        <button class="btn btn-primary" onclick="showCreatePet()">+ 创建新宠物</button>
+      </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="main-container">
+      <!-- 侧边栏 - 宠物列表 -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h3>我的宠物们</h3>
+        </div>
+        <div class="pet-list" id="petList">
+          <div class="empty-state">
+            <div class="empty-icon">🐾</div>
+            <p>还没有宠物哦～</p>
+            <p class="empty-hint">点击上方按钮创建你的第一只AI宠物吧！</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 内容区域 -->
+      <main class="content" id="mainContent">
+        <!-- 欢迎页 -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-hero">
+            <div class="hero-animation">
+              <span class="float-pet">🐕</span>
+              <span class="float-pet">🐱</span>
+              <span class="float-pet">🐰</span>
+              <span class="float-pet">🐹</span>
+              <span class="float-pet">🐦</span>
+            </div>
+            <h1>欢迎来到宠物AI互动器</h1>
+            <p class="hero-subtitle">定制你的专属AI宠物，让它们拥有独特的性格和灵魂</p>
+            <p class="hero-desc">用小孩子般的语气和你聊天、撒娇、玩耍，还能生成趣味剧情故事！</p>
+            <button class="btn btn-primary btn-large" onclick="showCreatePet()">✨ 开始创建我的宠物</button>
+          </div>
+        </div>
+
+        <!-- 宠物详情/互动页 -->
+        <div class="pet-interaction hidden" id="petInteraction">
+          <!-- 宠物信息卡 -->
+          <div class="pet-profile-card" id="petProfileCard">
+            <div class="profile-left">
+              <div class="pet-avatar-large" id="petAvatarLarge">
+                <img src="" alt="宠物头像" id="petAvatarImg">
+              </div>
+              <div class="pet-mood" id="petMood">😊</div>
+            </div>
+            <div class="profile-right">
+              <h2 id="petNameDisplay">宠物名字</h2>
+              <div class="pet-tags">
+                <span class="tag" id="petTypeTag">类型</span>
+                <span class="tag" id="petBreedTag">品种</span>
+                <span class="tag" id="petPersonalityTag">性格</span>
+              </div>
+              <div class="pet-level-bar">
+                <span class="level-label">Lv.<span id="petLevel">1</span></span>
+                <div class="exp-bar">
+                  <div class="exp-fill" id="expFill"></div>
+                </div>
+                <span class="exp-text" id="expText">0/100</span>
+              </div>
+              <p class="pet-custom-traits" id="petCustomTraits"></p>
+              <div class="profile-actions">
+                <button class="btn btn-outline btn-sm" onclick="generateStoryline()">📖 生成剧情</button>
+                <button class="btn btn-outline btn-sm" onclick="generateMultiStory()">👥 多宠互动</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 对话区域 -->
+          <div class="chat-section">
+            <div class="chat-header">
+              <h3>💬 和 <span id="chatPetName">宠物</span> 聊天</h3>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-welcome" id="chatWelcome">
+                <div class="welcome-bubble">
+                  <span class="bubble-icon">👋</span>
+                  <p>嗨！我是你的AI宠物伙伴，用小孩子般的语气和你聊天哦～</p>
+                  <p>快来跟我说话吧！</p>
+                </div>
+              </div>
+            </div>
+            <div class="chat-input-area">
+              <div class="quick-replies" id="quickReplies">
+                <button class="quick-reply-btn" onclick="sendQuickMessage('今天心情怎么样呀？')">😊 今天心情怎么样？</button>
+                <button class="quick-reply-btn" onclick="sendQuickMessage('想吃点什么吗？')">🍖 想吃点什么吗？</button>
+                <button class="quick-reply-btn" onclick="sendQuickMessage('我们一起玩吧！')">🎾 我们一起玩吧！</button>
+                <button class="quick-reply-btn" onclick="sendQuickMessage('我爱你！')">💕 我爱你！</button>
+                <button class="quick-reply-btn" onclick="sendQuickMessage('晚安啦～')">🌙 晚安啦～</button>
+              </div>
+              <div class="chat-input-row">
+                <input type="text" class="chat-input" id="chatInput" 
+                       placeholder="跟你的宠物说点什么吧..." 
+                       onkeypress="if(event.key==='Enter') sendMessage()">
+                <button class="btn btn-primary btn-send" onclick="sendMessage()">发送</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 剧情区域 -->
+          <div class="storyline-section hidden" id="storylineSection">
+            <div class="section-header">
+              <h3>📖 生成的剧情</h3>
+              <button class="btn btn-outline btn-sm" onclick="closeStoryline()">关闭</button>
+            </div>
+            <div class="storyline-content" id="storylineContent"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 创建宠物弹窗 -->
+    <div class="modal hidden" id="createPetModal">
+      <div class="modal-overlay" onclick="closeCreatePet()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>✨ 创建你的AI宠物</h2>
+          <button class="modal-close" onclick="closeCreatePet()">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- 步骤1: 选择类型 -->
+          <div class="form-section">
+            <label class="form-label">第一步：选择宠物类型</label>
+            <div class="type-selector" id="typeSelector">
+              <div class="type-option" data-type="dog" onclick="selectType('dog')">
+                <span class="type-emoji">🐕</span>
+                <span class="type-name">狗狗</span>
+              </div>
+              <div class="type-option" data-type="cat" onclick="selectType('cat')">
+                <span class="type-emoji">🐱</span>
+                <span class="type-name">猫咪</span>
+              </div>
+              <div class="type-option" data-type="rabbit" onclick="selectType('rabbit')">
+                <span class="type-emoji">🐰</span>
+                <span class="type-name">兔兔</span>
+              </div>
+              <div class="type-option" data-type="hamster" onclick="selectType('hamster')">
+                <span class="type-emoji">🐹</span>
+                <span class="type-name">仓鼠</span>
+              </div>
+              <div class="type-option" data-type="bird" onclick="selectType('bird')">
+                <span class="type-emoji">🐦</span>
+                <span class="type-name">小鸟</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步骤2: 详细信息 -->
+          <div id="petDetailsForm" class="hidden">
+            <div class="form-section">
+              <label class="form-label">给你的宠物起个名字</label>
+              <input type="text" class="form-input" id="petName" placeholder="例如：小豆豆、毛球、布丁..." maxlength="10">
+            </div>
+            
+            <div class="form-section">
+              <label class="form-label">选择品种</label>
+              <select class="form-select" id="petBreed">
+                <option value="">请先选择宠物类型</option>
+              </select>
+            </div>
+
+            <div class="form-section">
+              <label class="form-label">选择性格</label>
+              <div class="personality-selector" id="personalitySelector"></div>
+            </div>
+
+            <div class="form-section">
+              <label class="form-label">选择毛色</label>
+              <div class="color-selector" id="colorSelector"></div>
+            </div>
+
+            <div class="form-section">
+              <label class="form-label">自定义特征（选填）</label>
+              <input type="text" class="form-input" id="petCustomTraitsInput" placeholder="例如：左耳有个小缺口、喜欢歪头杀..." maxlength="50">
+            </div>
+
+            <button class="btn btn-primary btn-full" onclick="createPet()">🎉 创建我的AI宠物！</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 多宠互动弹窗 -->
+    <div class="modal hidden" id="multiStoryModal">
+      <div class="modal-overlay" onclick="closeMultiStory()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>👥 多宠互动剧情</h2>
+          <button class="modal-close" onclick="closeMultiStory()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-desc">选择至少2只宠物，让它们一起上演有趣的互动故事！</p>
+          <div class="multi-pet-select" id="multiPetSelect"></div>
+          <button class="btn btn-primary btn-full" id="multiStoryBtn" onclick="createMultiStory()" disabled>
+            🎭 生成多宠互动剧情
+          </button>
+          <div class="storyline-content hidden" id="multiStoryContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast hidden" id="toast"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
