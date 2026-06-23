@@ -4,3 +4,4 @@ nohup.out
 .DS_Store
 *.log
 public/uploads/
+data/

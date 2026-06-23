@@ -11,6 +11,49 @@ const execAsync = util.promisify(exec);
 const app = express();
 const PORT = 3000;
 
+// ============ 数据持久化 ============
+const dataDir = path.join(__dirname, 'data');
+const dataFiles = {
+  pets: path.join(dataDir, 'pets.json'),
+  conversations: path.join(dataDir, 'conversations.json'),
+  storylines: path.join(dataDir, 'storylines.json'),
+  counter: path.join(dataDir, 'counter.json')
+};
+
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+function loadData() {
+  try {
+    if (fs.existsSync(dataFiles.pets)) {
+      const loadedPets = JSON.parse(fs.readFileSync(dataFiles.pets, 'utf8'));
+      pets = loadedPets;
+    }
+    if (fs.existsSync(dataFiles.conversations)) {
+      conversations = JSON.parse(fs.readFileSync(dataFiles.conversations, 'utf8'));
+    }
+    if (fs.existsSync(dataFiles.storylines)) {
+      storylines = JSON.parse(fs.readFileSync(dataFiles.storylines, 'utf8'));
+    }
+    if (fs.existsSync(dataFiles.counter)) {
+      const counter = JSON.parse(fs.readFileSync(dataFiles.counter, 'utf8'));
+      petIdCounter = counter.petIdCounter || 1;
+    }
+  } catch (e) {
+    console.error('加载数据失败:', e);
+  }
+}
+
+function saveData() {
+  try {
+    fs.writeFileSync(dataFiles.pets, JSON.stringify(pets, null, 2));
+    fs.writeFileSync(dataFiles.conversations, JSON.stringify(conversations, null, 2));
+    fs.writeFileSync(dataFiles.storylines, JSON.stringify(storylines, null, 2));
+    fs.writeFileSync(dataFiles.counter, JSON.stringify({ petIdCounter }, null, 2));
+  } catch (e) {
+    console.error('保存数据失败:', e);
+  }
+}
+
 // ============ 文件上传配置 ============
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
 const photosDir = path.join(uploadsDir, 'photos');
@@ -513,6 +556,8 @@ app.post('/api/pets', (req, res) => {
   pets[id] = pet;
   conversations[id] = [];
   storylines[id] = [];
+  
+  saveData();
 
   res.json(pet);
 });
@@ -540,6 +585,8 @@ app.put('/api/pets/:id/avatar', (req, res) => {
   pet.avatar = avatarUrl;
   pet.hasAIPortrait = true;
   
+  saveData();
+  
   res.json({ success: true, pet });
 });
 
@@ -561,6 +608,7 @@ app.delete('/api/pets/:id', (req, res) => {
   delete pets[id];
   delete conversations[id];
   delete storylines[id];
+  saveData();
   res.json({ success: true });
 });
 
@@ -594,6 +642,8 @@ app.post('/api/pets/:id/chat', (req, res) => {
     conversation.newLevel = pet.level;
   }
 
+  saveData();
+
   res.json(conversation);
 });
 
@@ -614,6 +664,8 @@ app.post('/api/pets/:id/storyline', (req, res) => {
 
   if (!storylines[petId]) storylines[petId] = [];
   storylines[petId].push(storyline);
+
+  saveData();
 
   res.json(storyline);
 });
@@ -660,12 +712,24 @@ app.post('/api/pets/:id/request-ai-portrait', (req, res) => {
     return res.status(400).json({ error: '请先在宠物资料中上传照片' });
   }
   
-  // 如果已经在队列中，不再添加
-  if (!generationQueue.find(item => item.petId === petId)) {
+  // 自动生成描述性提示词，方便agent生成时使用
+  const prompt = `A cute ${pet.breed} pet ${pet.type === 'cat' ? 'cat' : pet.type === 'dog' ? 'dog' : pet.type} cartoon portrait, Pixar animation style, ${pet.color} fur/feathers/scales, ${pet.personality} expression, big expressive eyes, soft pastel colors, clean white background, adorable kawaii pet illustration, high quality digital art. Keep the breed characteristics of ${pet.breed}.`;
+  
+  // 如果已经在队列中，更新提示词
+  const existing = generationQueue.find(item => item.petId === petId);
+  if (existing) {
+    existing.prompt = prompt;
+    existing.status = 'pending';
+    existing.requestedAt = new Date().toISOString();
+  } else {
     generationQueue.push({
       petId,
       petName: pet.name,
+      breed: pet.breed,
+      color: pet.color,
+      personality: pet.personality,
       photoPath: pet.originalPhoto,
+      prompt,
       status: 'pending',
       requestedAt: new Date().toISOString()
     });
@@ -673,8 +737,9 @@ app.post('/api/pets/:id/request-ai-portrait', (req, res) => {
   
   res.json({ 
     success: true, 
-    message: 'AI肖像生成请求已提交。请在聊天窗口告诉我："请帮我生成宠物头像"，我会立即为你生成！',
-    queueLength: generationQueue.length
+    message: `AI肖像生成请求已提交。请在聊天窗口告诉我："请帮我生成 ${pet.name} 的 AI 肖像"，我会立即为你生成！`,
+    queueLength: generationQueue.length,
+    suggestedPrompt: prompt
   });
 });
 
@@ -694,10 +759,16 @@ app.post('/api/pets/:id/ai-portrait-complete', (req, res) => {
     generationQueue = generationQueue.filter(item => item.petId !== petId);
   }
   
+  saveData();
+  
   res.json({ success: true, pet });
 });
 
+// 定期保存数据（每30秒）
+setInterval(saveData, 30000);
+
 // ============ 启动服务 ============
+loadData();
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🐾 宠物AI互动器已启动: http://localhost:${PORT}`);
 });
