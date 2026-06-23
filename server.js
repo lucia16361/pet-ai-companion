@@ -238,6 +238,123 @@ const storylineTemplates = [
   }
 ];
 
+// 尝试从用户消息中提取记忆
+function extractMemory(pet, userMessage) {
+  const msg = userMessage.trim();
+  const memories = [];
+  
+  // 1. 主人名字
+  const namePatterns = [
+    /我(?:叫|是)([^，。！？\s]{1,6})/,
+    /主人(?:叫|是)([^，。！？\s]{1,6})/,
+    /你可以叫我([^，。！？\s]{1,6})/,
+    /我的名字是([^，。！？\s]{1,6})/
+  ];
+  for (const pattern of namePatterns) {
+    const match = msg.match(pattern);
+    if (match && match[1] && match[1] !== pet.name) {
+      memories.push(`主人的名字是${match[1]}`);
+      break;
+    }
+  }
+  
+  // 2. 主人喜欢什么
+  const likePatterns = [
+    /我(?:最)?爱吃(.{1,10})/,
+    /我(?:最)?喜欢(.{1,15})/,
+    /我爱(.{1,15})/,
+    /我喜欢吃(.{1,10})/,
+    /我喜欢(.{1,15})/
+  ];
+  for (const pattern of likePatterns) {
+    const match = msg.match(pattern);
+    if (match && match[1]) {
+      const target = match[1].replace(/[了着过]/, '').trim();
+      if (target.length > 0 && target.length < 15) {
+        memories.push(`主人最喜欢${target}`);
+      }
+    }
+  }
+  
+  // 3. 宠物喜欢什么
+  const petLikePatterns = [
+    /你(?:最)?喜欢(.{1,15})/,
+    /你爱吃(.{1,10})/,
+    /你喜欢(.{1,15})/
+  ];
+  for (const pattern of petLikePatterns) {
+    const match = msg.match(pattern);
+    if (match && match[1]) {
+      const target = match[1].replace(/[了着过]/, '').trim();
+      if (target.length > 0 && target.length < 15) {
+        memories.push(`${pet.name}最喜欢${target}`);
+      }
+    }
+  }
+  
+  // 4. 一起做过的事
+  const eventPatterns = [
+    /我们(?:昨天|今天|上周|上周日|上周末|前几天|一起)(.{1,20})/,
+    /我(?:昨天|今天|上周|上周日|上周末|前几天)(.{1,20})/
+  ];
+  for (const pattern of eventPatterns) {
+    const match = msg.match(pattern);
+    if (match && match[1]) {
+      const target = match[1].replace(/[了着过]/, '').trim();
+      if (target.length > 0 && target.length < 20) {
+        memories.push(`和主人一起${target}`);
+      }
+    }
+  }
+  
+  // 5. 主人的状态/情绪
+  const moodPatterns = [
+    /我(开心|难过|伤心|生气|累|困|饿|无聊|紧张|害怕|兴奋)/,
+    /我觉得(开心|难过|伤心|生气|累|困|饿|无聊|紧张|害怕|兴奋)/
+  ];
+  for (const pattern of moodPatterns) {
+    const match = msg.match(pattern);
+    if (match && match[1]) {
+      memories.push(`主人现在很${match[1]}`);
+    }
+  }
+  
+  return memories;
+}
+
+function formatMemoriesForResponse(pet, userMessage) {
+  if (!pet.memories || pet.memories.length === 0) return null;
+  
+  const msg = userMessage.toLowerCase();
+  let relevantMemories = [];
+  
+  // 简单相关性匹配：如果消息关键词出现在记忆中
+  pet.memories.forEach(memory => {
+    const memoryText = typeof memory === 'string' ? memory : memory.content;
+    if (!memoryText) return;
+    
+    // 提取记忆关键词
+    const keywords = memoryText.replace(/主人|最|喜欢|和|一起|现在|很|是/g, '').split(/[，、]/).filter(w => w.length >= 2);
+    
+    for (const keyword of keywords) {
+      if (msg.includes(keyword.toLowerCase()) || keyword.length <= 3 && msg.includes(keyword)) {
+        relevantMemories.push(memoryText);
+        break;
+      }
+    }
+  });
+  
+  // 如果消息包含"记得"，返回所有记忆
+  if (msg.includes('记得')) {
+    relevantMemories = pet.memories.map(m => typeof m === 'string' ? m : m.content);
+  }
+  
+  if (relevantMemories.length === 0) return null;
+  
+  // 最多返回 2 条相关记忆
+  return relevantMemories.slice(0, 2);
+}
+
 // ============ 对话生成 ============
 function generatePetResponse(pet, userMessage) {
   const personalityPhrases = {
@@ -295,6 +412,26 @@ function generatePetResponse(pet, userMessage) {
   // 根据用户消息内容生成更相关的回复
   let response = '';
   const msg = userMessage.toLowerCase();
+  
+  // 提取记忆
+  const newMemories = extractMemory(pet, userMessage);
+  if (newMemories.length > 0) {
+    if (!pet.memories) pet.memories = [];
+    pet.memories.push(...newMemories.map(m => ({
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      content: m,
+      createdAt: new Date().toISOString()
+    })));
+    
+    // 如果记忆包含主人名字，同步更新 ownerName
+    const nameMemory = newMemories.find(m => m.startsWith('主人的名字是'));
+    if (nameMemory) {
+      pet.ownerName = nameMemory.replace('主人的名字是', '').trim();
+    }
+  }
+  
+  // 获取相关记忆
+  const relevantMemories = formatMemoriesForResponse(pet, userMessage);
   
   // 特殊关键词：AI肖像/照片
   if (msg.includes('照片') || msg.includes('长得') || msg.includes('像不像') || msg.includes('肖像')) {
@@ -356,14 +493,34 @@ function generatePetResponse(pet, userMessage) {
     response = `${randomEmoji} 我叫${pet.name}呀！${pet.breed}，${pet.color}，性格是${pet.personality}，你记住我了吗？`;
   } else {
     const genericResponses = [
-      `${randomEmoji} ${randomPhrase} ${pet.name}听主人说话就开心！`,
-      `${randomEmoji} 嗯嗯！${pet.name}在认真听呢！虽然可能听不懂，但是好喜欢主人的声音～`,
-      `${randomEmoji} ${pet.name}歪着头看着主人，好像在说：继续继续！`,
-      `${randomEmoji} ${randomPhrase} 和主人在一起的每一秒都好幸福呀！`,
+      `${randomEmoji} ${randomPhrase} ${pet.name}听${pet.ownerName}说话就开心！`,
+      `${randomEmoji} 嗯嗯！${pet.name}在认真听呢！虽然可能听不懂，但是好喜欢${pet.ownerName}的声音～`,
+      `${randomEmoji} ${pet.name}歪着头看着${pet.ownerName}，好像在说：继续继续！`,
+      `${randomEmoji} ${randomPhrase} 和${pet.ownerName}在一起的每一秒都好幸福呀！`,
       `${randomEmoji} ${pet.name}摇了摇尾巴（如果有的话），表示超级赞同！`,
-      `${randomEmoji} 主人你知道吗？${pet.name}今天又有一个小秘密想告诉你！`
+      `${randomEmoji} ${pet.ownerName}你知道吗？${pet.name}今天又有一个小秘密想告诉你！`,
+      `${randomEmoji} ${randomPhrase} ${pet.name}最近发现${pet.ownerName}是世界上最好的${pet.ownerRelationship}！`,
+      `${randomEmoji} ${pet.name}想要永远做${pet.ownerName}的小跟班！${randomPhrase}`
     ];
     response = genericResponses[Math.floor(Math.random() * genericResponses.length)];
+  }
+  
+  // 如果有相关记忆，自然融入回复
+  if (relevantMemories && relevantMemories.length > 0) {
+    const memory = relevantMemories[0];
+    const memoryOpeners = ['嘿嘿，', '对了，', '我还记得，', '主人你知道吗，'];
+    const randomOpener = memoryOpeners[Math.floor(Math.random() * memoryOpeners.length)];
+    
+    if (memory.includes('主人最喜欢') || memory.includes('和主人一起')) {
+      response = `${response}\n\n${randomOpener}${memory}，${pet.name}一直记得呢！${randomEmoji}`;
+    } else if (memory.includes('主人的名字是')) {
+      const ownerName = memory.replace('主人的名字是', '');
+      response = `${response}\n\n${randomOpener}${pet.name}记住${ownerName}的名字啦！以后就叫你${ownerName}～${randomEmoji}`;
+    } else if (memory.includes('主人现在很')) {
+      response = `${response}\n\n${pet.name}知道${memory.replace('主人现在很', '')}... ${pet.name}会一直陪着${pet.ownerName}的！${randomEmoji}`;
+    } else {
+      response = `${response}\n\n${randomOpener}${memory}，${pet.name}都没有忘哦！${randomEmoji}`;
+    }
   }
 
   return response;
@@ -547,6 +704,9 @@ app.post('/api/pets', (req, res) => {
     avatar,
     originalPhoto: photoUrl || null,
     hasAIPortrait: false,
+    ownerName: '主人',
+    ownerRelationship: '最好的朋友',
+    memories: [],
     level: 1,
     exp: 0,
     mood: 'happy',
@@ -590,7 +750,56 @@ app.put('/api/pets/:id/avatar', (req, res) => {
   res.json({ success: true, pet });
 });
 
-// 删除宠物
+// 更新宠物资料（主人信息、记忆等）
+app.put('/api/pets/:id', (req, res) => {
+  const pet = pets[parseInt(req.params.id)];
+  if (!pet) return res.status(404).json({ error: '宠物不存在' });
+  
+  const { ownerName, ownerRelationship, memories, customTraits, name, color, personality } = req.body;
+  
+  if (ownerName !== undefined) pet.ownerName = ownerName.trim() || pet.ownerName;
+  if (ownerRelationship !== undefined) pet.ownerRelationship = ownerRelationship.trim() || pet.ownerRelationship;
+  if (memories !== undefined && Array.isArray(memories)) pet.memories = memories;
+  if (customTraits !== undefined) pet.customTraits = customTraits;
+  if (name !== undefined && name.trim()) pet.name = name.trim();
+  if (color !== undefined) pet.color = color;
+  if (personality !== undefined) pet.personality = personality;
+  
+  saveData();
+  res.json({ success: true, pet });
+});
+
+// 添加宠物记忆
+app.post('/api/pets/:id/memories', (req, res) => {
+  const pet = pets[parseInt(req.params.id)];
+  if (!pet) return res.status(404).json({ error: '宠物不存在' });
+  
+  const { memory } = req.body;
+  if (!memory || !memory.trim()) return res.status(400).json({ error: '记忆内容不能为空' });
+  
+  if (!pet.memories) pet.memories = [];
+  pet.memories.push({
+    id: Date.now(),
+    content: memory.trim(),
+    createdAt: new Date().toISOString()
+  });
+  
+  saveData();
+  res.json({ success: true, memory: memory.trim() });
+});
+
+// 删除宠物记忆
+app.delete('/api/pets/:id/memories/:memoryId', (req, res) => {
+  const pet = pets[parseInt(req.params.id)];
+  if (!pet) return res.status(404).json({ error: '宠物不存在' });
+  
+  const memoryId = parseInt(req.params.memoryId);
+  if (!pet.memories) pet.memories = [];
+  pet.memories = pet.memories.filter(m => m.id !== memoryId && m !== memoryId);
+  
+  saveData();
+  res.json({ success: true });
+});
 app.delete('/api/pets/:id', (req, res) => {
   const id = parseInt(req.params.id);
   if (!pets[id]) return res.status(404).json({ error: '宠物不存在' });

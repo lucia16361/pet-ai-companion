@@ -6,6 +6,7 @@ let state = {
   selectedType: null,
   selectedPersonality: null,
   selectedColor: null,
+  selectedRelationship: '最好的朋友',
   uploadedPhotoUrl: null,
   selectedMultiPets: new Set()
 };
@@ -108,10 +109,17 @@ async function loadPetProfile(petId) {
     document.getElementById('petCustomTraits').textContent = pet.customTraits || '';
     document.getElementById('chatPetName').textContent = pet.name;
     
+    // 主人信息
+    document.getElementById('ownerNameDisplay').textContent = pet.ownerName || '主人';
+    document.getElementById('ownerRelationshipDisplay').textContent = pet.ownerRelationship || '最好的朋友';
+    
     // AI 肖像按钮状态
     const aiPortraitBtn = document.getElementById('aiPortraitBtn');
     aiPortraitBtn.disabled = !pet.originalPhoto;
     aiPortraitBtn.textContent = pet.hasAIPortrait ? '✨ 重新生成AI肖像' : '🎨 AI生成肖像';
+    
+    // 记忆区
+    renderMemories(pet);
     
     // 头像
     const avatarImg = document.getElementById('petAvatarImg');
@@ -416,6 +424,7 @@ function showCreatePet() {
   state.selectedType = null;
   state.selectedPersonality = null;
   state.selectedColor = null;
+  state.selectedRelationship = '最好的朋友';
   state.uploadedPhotoUrl = null;
   
   // 重置UI
@@ -423,19 +432,18 @@ function showCreatePet() {
   document.getElementById('petDetailsForm').classList.add('hidden');
   document.getElementById('petName').value = '';
   document.getElementById('petCustomTraitsInput').value = '';
+  document.getElementById('ownerName').value = '主人';
   document.getElementById('petBreed').innerHTML = '<option value="">请先选择宠物类型</option>';
   document.getElementById('personalitySelector').innerHTML = '';
   document.getElementById('colorSelector').innerHTML = '';
   
+  // 重置关系选择器
+  document.querySelectorAll('#relationshipSelector .personality-option').forEach(el => {
+    el.classList.toggle('selected', el.dataset.relationship === '最好的朋友');
+  });
+  
   // 重置照片上传
-  document.getElementById('photoPreview').classList.add('hidden');
-  document.getElementById('photoPreview').src = '';
-  document.getElementById('photoPlaceholder').classList.remove('hidden');
-  document.getElementById('photoRemove').classList.add('hidden');
-  document.getElementById('photoUploadArea').classList.remove('has-photo');
-  document.getElementById('photoStatus').textContent = '';
-  document.getElementById('photoStatus').className = 'photo-status';
-  document.getElementById('petPhoto').value = '';
+  removePhoto();
   
   document.getElementById('createPetModal').classList.remove('hidden');
 }
@@ -499,9 +507,20 @@ function selectType(type) {
 }
 
 function selectPersonality(personality) {
+  // 只有性格选择器里的选项才响应
+  const el = event.target;
+  if (el.closest('#relationshipSelector')) return; // 关系选择器单独处理
+  
   state.selectedPersonality = personality;
-  document.querySelectorAll('.personality-option').forEach(el => {
-    el.classList.toggle('selected', el.dataset.personality === personality);
+  document.querySelectorAll('#personalitySelector .personality-option').forEach(opt => {
+    opt.classList.toggle('selected', opt.dataset.personality === personality);
+  });
+}
+
+function selectRelationship(relationship) {
+  state.selectedRelationship = relationship;
+  document.querySelectorAll('#relationshipSelector .personality-option').forEach(opt => {
+    opt.classList.toggle('selected', opt.dataset.relationship === relationship);
   });
 }
 
@@ -517,23 +536,26 @@ async function createPet() {
   const breed = document.getElementById('petBreed').value;
   const personality = state.selectedPersonality;
   const color = state.selectedColor;
-  const customTraits = document.getElementById('petCustomTraitsInput').value.trim();
-  
-  // 验证
-  if (!name) return showToast('请给你的宠物起个名字吧！');
-  if (!breed) return showToast('请选择品种哦～');
-  if (!personality) return showToast('请选择宠物的性格～');
-  if (!color) return showToast('请选择毛色～');
-  
-  try {
-    const res = await fetch('/api/pets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name, type: state.selectedType, breed, personality, color, customTraits,
-        photoUrl: state.uploadedPhotoUrl
-      })
-    });
+    const customTraits = document.getElementById('petCustomTraitsInput').value.trim();
+    const ownerName = document.getElementById('ownerName').value.trim();
+    
+    // 验证
+    if (!name) return showToast('请给你的宠物起个名字吧！');
+    if (!breed) return showToast('请选择品种哦～');
+    if (!personality) return showToast('请选择宠物的性格～');
+    if (!color) return showToast('请选择毛色～');
+    
+    try {
+      const res = await fetch('/api/pets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name, type: state.selectedType, breed, personality, color, customTraits,
+          photoUrl: state.uploadedPhotoUrl,
+          ownerName: ownerName || '主人',
+          ownerRelationship: state.selectedRelationship
+        })
+      });
     
     if (!res.ok) {
       const err = await res.json();
@@ -686,6 +708,92 @@ function getPortraitBadge(pet) {
   if (pet.hasAIPortrait) return '<span class="portrait-badge ai">✨ AI肖像</span>';
   if (pet.originalPhoto) return '<span class="portrait-badge photo">📷 真实照片</span>';
   return '<span class="portrait-badge none">🎲 默认头像</span>';
+}
+
+function renderMemories(pet) {
+  const container = document.getElementById('memoryContent');
+  if (!pet.memories || pet.memories.length === 0) {
+    container.innerHTML = '<p class="memory-empty">还没有小秘密哦～聊天时我会自动记住你们的点点滴滴！</p>';
+    return;
+  }
+  
+  container.innerHTML = '<div class="memory-list">' + 
+    pet.memories.map(memory => {
+      const content = typeof memory === 'string' ? memory : memory.content;
+      const id = typeof memory === 'string' ? null : memory.id;
+      return `<div class="memory-item">${escapeHtml(content)}${id ? `<button class="memory-delete" onclick="deleteMemory(${id})" title="删除">✕</button>` : ''}</div>`;
+    }).join('') + 
+  '</div>';
+}
+
+async function addMemory() {
+  if (!state.currentPetId) return;
+  const input = document.getElementById('memoryInput');
+  const memory = input.value.trim();
+  if (!memory) return;
+  
+  try {
+    const res = await fetch(`/api/pets/${state.currentPetId}/memories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memory })
+    });
+    
+    if (!res.ok) throw new Error('添加失败');
+    
+    input.value = '';
+    await loadPets();
+    const pet = state.pets.find(p => p.id === state.currentPetId);
+    if (pet) renderMemories(pet);
+    showToast('🧠 我记住啦！');
+  } catch (e) {
+    showToast('❌ 添加失败');
+  }
+}
+
+async function deleteMemory(memoryId) {
+  if (!state.currentPetId || !memoryId) return;
+  if (!confirm('确定要忘记这个小秘密吗？')) return;
+  
+  try {
+    await fetch(`/api/pets/${state.currentPetId}/memories/${memoryId}`, { method: 'DELETE' });
+    await loadPets();
+    const pet = state.pets.find(p => p.id === state.currentPetId);
+    if (pet) renderMemories(pet);
+  } catch (e) {
+    showToast('❌ 删除失败');
+  }
+}
+
+async function editPetProfile() {
+  if (!state.currentPetId) return;
+  const pet = state.pets.find(p => p.id === state.currentPetId);
+  if (!pet) return;
+  
+  const newOwnerName = prompt('主人怎么称呼？', pet.ownerName || '主人');
+  if (newOwnerName === null) return; // 取消
+  
+  const newRelationship = prompt('你们是什么关系？', pet.ownerRelationship || '最好的朋友');
+  if (newRelationship === null) return;
+  
+  try {
+    const res = await fetch(`/api/pets/${state.currentPetId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ownerName: newOwnerName.trim() || '主人',
+        ownerRelationship: newRelationship.trim() || '最好的朋友'
+      })
+    });
+    
+    if (!res.ok) throw new Error('更新失败');
+    
+    await loadPets();
+    await loadPetProfile(state.currentPetId);
+    showToast('✅ 资料更新成功！');
+  } catch (e) {
+    showToast('❌ 更新失败');
+  }
 }
 
 function formatTime(timestamp) {

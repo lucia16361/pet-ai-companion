@@ -71,6 +71,10 @@
                 <span class="tag" id="petBreedTag">品种</span>
                 <span class="tag" id="petPersonalityTag">性格</span>
               </div>
+              <div class="pet-owner-info" id="petOwnerInfo">
+                <span>👤 主人：<span id="ownerNameDisplay">主人</span></span>
+                <span style="margin-left: 12px;">💕 关系：<span id="ownerRelationshipDisplay">最好的朋友</span></span>
+              </div>
               <div class="pet-level-bar">
                 <span class="level-label">Lv.<span id="petLevel">1</span></span>
                 <div class="exp-bar">
@@ -83,7 +87,22 @@
                 <button class="btn btn-outline btn-sm" onclick="generateStoryline()">📖 生成剧情</button>
                 <button class="btn btn-outline btn-sm" onclick="generateMultiStory()">👥 多宠互动</button>
                 <button class="btn btn-secondary btn-sm" id="aiPortraitBtn" onclick="requestAIPortrait()" disabled>🎨 AI生成肖像</button>
+                <button class="btn btn-outline btn-sm" onclick="editPetProfile()">✏️ 编辑资料</button>
               </div>
+            </div>
+          </div>
+
+          <!-- 记忆区 -->
+          <div class="memory-section" id="memorySection">
+            <div class="section-header">
+              <h3>🧠 我和宠物的小秘密</h3>
+            </div>
+            <div class="memory-content" id="memoryContent">
+              <p class="memory-empty">还没有小秘密哦～聊天时我会自动记住你们的点点滴滴！</p>
+            </div>
+            <div class="memory-input-row">
+              <input type="text" class="memory-input" id="memoryInput" placeholder="告诉宠物一个秘密...（例如：我最爱吃草莓）" onkeypress="if(event.key==='Enter') addMemory()">
+              <button class="btn btn-primary btn-sm" onclick="addMemory()">添加</button>
             </div>
           </div>
 
@@ -107,6 +126,7 @@
                 <button class="quick-reply-btn" onclick="sendQuickMessage('想吃点什么吗？')">🍖 想吃点什么吗？</button>
                 <button class="quick-reply-btn" onclick="sendQuickMessage('我们一起玩吧！')">🎾 我们一起玩吧！</button>
                 <button class="quick-reply-btn" onclick="sendQuickMessage('我爱你！')">💕 我爱你！</button>
+                <button class="quick-reply-btn" onclick="sendQuickMessage('我叫小明，你要记住我哦')">📝 告诉它你的名字</button>
                 <button class="quick-reply-btn" onclick="sendQuickMessage('晚安啦～')">🌙 晚安啦～</button>
               </div>
               <div class="chat-input-row">
@@ -191,23 +211,8 @@
               <div class="photo-status" id="photoStatus"></div>
             </div>
 
-              <div class="form-section">
-                <label class="form-label">上传真实宠物照片（AI会根据照片生成肖像）</label>
-                <div class="photo-upload-area" id="photoUploadArea" onclick="document.getElementById('petPhoto').click()">
-                  <div class="photo-placeholder" id="photoPlaceholder">
-                    <span class="photo-icon">📷</span>
-                    <p>点击上传宠物照片</p>
-                    <p class="photo-hint">支持 JPG / PNG / WEBP，最大 5MB</p>
-                  </div>
-                  <img id="photoPreview" class="photo-preview hidden" alt="宠物照片预览">
-                  <button type="button" class="photo-remove hidden" id="photoRemove" onclick="event.stopPropagation(); removePhoto()">✕</button>
-                </div>
-                <input type="file" id="petPhoto" class="hidden" accept="image/*" onchange="handlePhotoUpload(event)">
-                <div class="photo-status" id="photoStatus"></div>
-              </div>
-
-              <div class="form-section">
-                <label class="form-label">给你的宠物起个名字</label>
+            <div class="form-section">
+              <label class="form-label">给你的宠物起个名字</label>
               <input type="text" class="form-input" id="petName" placeholder="例如：小豆豆、毛球、布丁..." maxlength="10">
             </div>
             
@@ -226,6 +231,23 @@
             <div class="form-section">
               <label class="form-label">选择毛色</label>
               <div class="color-selector" id="colorSelector"></div>
+            </div>
+
+            <div class="form-section">
+              <label class="form-label">主人怎么称呼？（宠物会这样叫你）</label>
+              <input type="text" class="form-input" id="ownerName" placeholder="例如：小明、妈妈、爸爸..." maxlength="10" value="主人">
+            </div>
+
+            <div class="form-section">
+              <label class="form-label">你们是什么关系？</label>
+              <div class="personality-selector" id="relationshipSelector">
+                <div class="personality-option" data-relationship="最好的朋友" onclick="selectRelationship('最好的朋友')">最好的朋友</div>
+                <div class="personality-option" data-relationship="家人" onclick="selectRelationship('家人')">家人</div>
+                <div class="personality-option" data-relationship="铲屎官" onclick="selectRelationship('铲屎官')">铲屎官</div>
+                <div class="personality-option" data-relationship="小主人" onclick="selectRelationship('小主人')">小主人</div>
+                <div class="personality-option" data-relationship="麻麻" onclick="selectRelationship('麻麻')">麻麻</div>
+                <div class="personality-option" data-relationship="粑粑" onclick="selectRelationship('粑粑')">粑粑</div>
+              </div>
             </div>
 
             <div class="form-section">

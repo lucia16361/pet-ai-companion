@@ -160,7 +160,7 @@ body {
 
 .profile-right { flex: 1; }
 .profile-right h2 { font-size: 24px; margin-bottom: 10px; color: var(--primary-dark); display: flex; align-items: center; flex-wrap: wrap; }
-.pet-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.pet-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .tag {
   display: inline-block; padding: 4px 12px; border-radius: 20px;
   font-size: 12px; font-weight: 600;
@@ -168,6 +168,9 @@ body {
 .tag:nth-child(1) { background: #ede9fe; color: #7c3aed; }
 .tag:nth-child(2) { background: #fef3c7; color: #d97706; }
 .tag:nth-child(3) { background: #dbeafe; color: #2563eb; }
+
+.pet-owner-info { font-size: 13px; color: var(--text-light); margin-bottom: 12px; }
+.pet-owner-info span { display: inline-block; }
 
 .pet-level-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .level-label { font-weight: 700; color: var(--primary); font-size: 14px; }
@@ -191,6 +194,33 @@ body {
 .portrait-badge.ai { background: #dbeafe; color: #2563eb; }
 .portrait-badge.photo { background: #d1fae5; color: #059669; }
 .portrait-badge.none { background: #f3f4f6; color: #6b7280; }
+
+/* 记忆区 */
+.memory-section {
+  margin-bottom: 20px; background: var(--bg-card);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px;
+}
+.memory-section .section-header { margin-bottom: 14px; }
+.memory-section h3 { font-size: 16px; color: var(--primary-dark); }
+.memory-content { margin-bottom: 12px; }
+.memory-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.memory-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; background: #f0f9ff; color: #0369a1;
+  border-radius: 20px; font-size: 13px; border: 1px solid #bae6fd;
+}
+.memory-item .memory-delete {
+  background: none; border: none; color: #7dd3fc; cursor: pointer;
+  font-size: 12px; padding: 0 2px; transition: color var(--transition);
+}
+.memory-item .memory-delete:hover { color: var(--danger); }
+.memory-empty { font-size: 13px; color: var(--text-light); font-style: italic; }
+.memory-input-row { display: flex; gap: 8px; }
+.memory-input {
+  flex: 1; padding: 10px 14px; border: 2px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 14px; outline: none;
+}
+.memory-input:focus { border-color: var(--primary); }
 
 /* 对话区 */
 .chat-section { background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
@@ -379,7 +409,7 @@ body {
 .type-emoji { font-size: 32px; }
 .type-name { font-size: 13px; font-weight: 600; }
 
-/* 性格选择器 */
+/* 性格/关系选择器 */
 .personality-selector { display: flex; flex-wrap: wrap; gap: 8px; }
 .personality-option {
   padding: 8px 14px; border: 2px solid var(--border);
@@ -428,4 +458,6 @@ body {
   .type-option { min-width: 70px; }
   .message-bubble { max-width: 85%; }
   .profile-right h2 { justify-content: center; }
+  .pet-owner-info span { display: block; margin: 4px 0; }
+  .memory-input-row { flex-direction: column; }
 }
