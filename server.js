@@ -3,13 +3,15 @@ const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
-const { exec } = require('child_process');
-const util = require('util');
 
-const execAsync = util.promisify(exec);
+// 加载环境变量
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
+
+// 导入 LLM 对话服务
+const { generateLLMResponse } = require('./services/chatService');
 
 // ============ 数据持久化 ============
 const dataDir = path.join(__dirname, 'data');
@@ -822,7 +824,7 @@ app.delete('/api/pets/:id', (req, res) => {
 });
 
 // 发送消息（对话互动）
-app.post('/api/pets/:id/chat', (req, res) => {
+app.post('/api/pets/:id/chat', async (req, res) => {
   const petId = parseInt(req.params.id);
   const pet = pets[petId];
   if (!pet) return res.status(404).json({ error: '宠物不存在' });
@@ -830,12 +832,37 @@ app.post('/api/pets/:id/chat', (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: '消息不能为空' });
 
-  const response = generatePetResponse(pet, message);
+  // 1. 提取新记忆
+  const newMemories = extractMemory(pet, message);
+  if (newMemories.length > 0) {
+    if (!pet.memories) pet.memories = [];
+    newMemories.forEach(memoryText => {
+      pet.memories.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        content: memoryText,
+        createdAt: new Date().toISOString()
+      });
+    });
+    // 如果记忆里有主人名字，同步更新 ownerName
+    const nameMemory = newMemories.find(m => m.startsWith('主人的名字是'));
+    if (nameMemory) {
+      pet.ownerName = nameMemory.replace('主人的名字是', '');
+    }
+  }
+
+  // 2. 尝试 LLM，失败则回退到规则引擎
+  let response = await generateLLMResponse(pet, message, conversations[petId] || []);
+  let usedLLM = !!response;
+  
+  if (!response) {
+    response = generatePetResponse(pet, message);
+  }
   
   const conversation = {
     id: Date.now(),
     userMessage: message,
     petResponse: response,
+    usedLLM,
     timestamp: new Date().toISOString()
   };
 
