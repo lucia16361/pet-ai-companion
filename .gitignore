@@ -3,3 +3,4 @@ server.log
 nohup.out
 .DS_Store
 *.log
+public/uploads/

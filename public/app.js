@@ -6,6 +6,7 @@ let state = {
   selectedType: null,
   selectedPersonality: null,
   selectedColor: null,
+  uploadedPhotoUrl: null,
   selectedMultiPets: new Set()
 };
 
@@ -99,7 +100,7 @@ async function loadPetProfile(petId) {
     const res = await fetch(`/api/pets/${petId}`);
     const pet = await res.json();
     
-    document.getElementById('petNameDisplay').textContent = pet.name;
+    document.getElementById('petNameDisplay').innerHTML = `${pet.name} ${getPortraitBadge(pet)}`;
     document.getElementById('petTypeTag').textContent = getTypeName(pet.type);
     document.getElementById('petBreedTag').textContent = pet.breed;
     document.getElementById('petPersonalityTag').textContent = pet.personality;
@@ -107,8 +108,14 @@ async function loadPetProfile(petId) {
     document.getElementById('petCustomTraits').textContent = pet.customTraits || '';
     document.getElementById('chatPetName').textContent = pet.name;
     
+    // AI 肖像按钮状态
+    const aiPortraitBtn = document.getElementById('aiPortraitBtn');
+    aiPortraitBtn.disabled = !pet.originalPhoto;
+    aiPortraitBtn.textContent = pet.hasAIPortrait ? '✨ 重新生成AI肖像' : '🎨 AI生成肖像';
+    
     // 头像
     const avatarImg = document.getElementById('petAvatarImg');
+    avatarImg.style.display = 'block';
     avatarImg.src = pet.avatar || '';
     avatarImg.onerror = () => {
       avatarImg.style.display = 'none';
@@ -229,10 +236,13 @@ async function sendMessage() {
     
     // 显示宠物回复 - 打字机动画
     const pet = state.pets.find(p => p.id === state.currentPetId);
+    const avatarContent = pet && (pet.avatar || pet.originalPhoto) 
+      ? `<img src="${pet.avatar || pet.originalPhoto}" alt="${pet.name}" onerror="this.parentElement.textContent='${getTypeEmoji(pet.type)}'">`
+      : (pet ? getTypeEmoji(pet.type) : '🐾');
     const petMsgDiv = document.createElement('div');
     petMsgDiv.className = 'message pet';
     petMsgDiv.innerHTML = `
-      <div class="message-avatar">${pet ? getTypeEmoji(pet.type) : '🐾'}</div>
+      <div class="message-avatar">${avatarContent}</div>
       <div>
         <div class="message-bubble"><span class="typing-cursor">▊</span></div>
         <div class="message-time">刚刚</div>
@@ -406,12 +416,26 @@ function showCreatePet() {
   state.selectedType = null;
   state.selectedPersonality = null;
   state.selectedColor = null;
+  state.uploadedPhotoUrl = null;
   
   // 重置UI
   document.querySelectorAll('.type-option').forEach(el => el.classList.remove('selected'));
   document.getElementById('petDetailsForm').classList.add('hidden');
   document.getElementById('petName').value = '';
   document.getElementById('petCustomTraitsInput').value = '';
+  document.getElementById('petBreed').innerHTML = '<option value="">请先选择宠物类型</option>';
+  document.getElementById('personalitySelector').innerHTML = '';
+  document.getElementById('colorSelector').innerHTML = '';
+  
+  // 重置照片上传
+  document.getElementById('photoPreview').classList.add('hidden');
+  document.getElementById('photoPreview').src = '';
+  document.getElementById('photoPlaceholder').classList.remove('hidden');
+  document.getElementById('photoRemove').classList.add('hidden');
+  document.getElementById('photoUploadArea').classList.remove('has-photo');
+  document.getElementById('photoStatus').textContent = '';
+  document.getElementById('photoStatus').className = 'photo-status';
+  document.getElementById('petPhoto').value = '';
   
   document.getElementById('createPetModal').classList.remove('hidden');
 }
@@ -454,7 +478,15 @@ function selectType(type) {
     '蓝灰色': '#7c8db5', '奶牛色': 'linear-gradient(90deg, #f8fafc 50%, #1e293b 50%)',
     '奶茶色': '#d4a574', '绿色': '#22c55e', '蓝色': '#3b82f6', '黄色': '#eab308',
     '彩色': 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e, #3b82f6, #8b5cf6)',
-    '花色': 'linear-gradient(90deg, #f8fafc 50%, #92400e 50%)'
+    '花色': 'linear-gradient(90deg, #f8fafc 50%, #92400e 50%)',
+    '红色': '#ef4444', '橙色': '#f97316', '紫色': '#8b5cf6', '粉色': '#ec4899',
+    '豹纹': 'repeating-linear-gradient(45deg, #92400e, #92400e 5px, #d4a574 5px, #d4a574 10px)',
+    '玳瑁色': 'linear-gradient(45deg, #1e293b 25%, #f97316 25%, #f97316 50%, #f8fafc 50%, #f8fafc 75%, #f97316 75%)',
+    '重点色': 'linear-gradient(90deg, #f8fafc 60%, #1e293b 60%)',
+    '银白色': '#e5e7eb', '米黄色': '#fde68a', '巧克力色': '#7c2d12', '霜白色': '#f0f9ff',
+    '蓝重点': 'linear-gradient(90deg, #f8fafc 60%, #7c8db5 60%)', '香槟色': '#fde68a',
+    '斑点': 'radial-gradient(circle, #1e293b 20%, #f8fafc 20%)', '渐变色': 'linear-gradient(90deg, #f59e0b, #ec4899, #8b5cf6)',
+    '透明色': 'linear-gradient(135deg, #e0f2fe, #fef3c7)', '纯色': '#f3f4f6', '杂色': 'repeating-conic-gradient(#f3f4f6 0% 25%, #d1d5db 0% 50%)'
   };
   
   colorContainer.innerHTML = data.colors.map(c => {
@@ -498,7 +530,8 @@ async function createPet() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name, type: state.selectedType, breed, personality, color, customTraits
+        name, type: state.selectedType, breed, personality, color, customTraits,
+        photoUrl: state.uploadedPhotoUrl
       })
     });
     
@@ -514,6 +547,93 @@ async function createPet() {
     showToast(`🎉 ${pet.name} 创建成功！快来和它聊天吧！`);
   } catch (e) {
     showToast('❌ 创建失败，请重试');
+  }
+}
+
+// ============ 照片上传 ============
+async function handlePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const status = document.getElementById('photoStatus');
+  status.textContent = '正在上传...';
+  status.className = 'photo-status';
+  
+  // 简单预览
+  const preview = document.getElementById('photoPreview');
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    preview.src = e.target.result;
+    preview.classList.remove('hidden');
+    document.getElementById('photoPlaceholder').classList.add('hidden');
+    document.getElementById('photoRemove').classList.remove('hidden');
+    document.getElementById('photoUploadArea').classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+  
+  try {
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    const res = await fetch('/api/upload-photo', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const result = await res.json();
+    
+    if (!res.ok || !result.success) {
+      throw new Error(result.error || '上传失败');
+    }
+    
+    state.uploadedPhotoUrl = result.photoUrl;
+    status.textContent = '✅ 照片上传成功！';
+    status.className = 'photo-status success';
+  } catch (e) {
+    status.textContent = '❌ 上传失败：' + e.message;
+    status.className = 'photo-status error';
+    removePhoto();
+  }
+}
+
+function removePhoto() {
+  state.uploadedPhotoUrl = null;
+  document.getElementById('photoPreview').classList.add('hidden');
+  document.getElementById('photoPreview').src = '';
+  document.getElementById('photoPlaceholder').classList.remove('hidden');
+  document.getElementById('photoRemove').classList.add('hidden');
+  document.getElementById('photoUploadArea').classList.remove('has-photo');
+  document.getElementById('photoStatus').textContent = '';
+  document.getElementById('photoStatus').className = 'photo-status';
+  document.getElementById('petPhoto').value = '';
+}
+
+// ============ AI 肖像生成 ============
+async function requestAIPortrait() {
+  if (!state.currentPetId) return;
+  
+  const pet = state.pets.find(p => p.id === state.currentPetId);
+  if (!pet || !pet.originalPhoto) {
+    showToast('请先上传宠物照片才能生成AI肖像哦～');
+    return;
+  }
+  
+  showToast('🎨 已提交AI肖像生成请求，请稍候...');
+  
+  try {
+    const res = await fetch(`/api/pets/${state.currentPetId}/request-ai-portrait`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const result = await res.json();
+    
+    if (!res.ok) {
+      throw new Error(result.error || '请求失败');
+    }
+    
+    showToast('✅ ' + result.message);
+  } catch (e) {
+    showToast('❌ ' + e.message);
   }
 }
 
@@ -537,13 +657,35 @@ async function deletePet(petId) {
 
 // ============ 工具函数 ============
 function getTypeName(type) {
-  const names = { dog: '🐕 狗狗', cat: '🐱 猫咪', rabbit: '🐰 兔兔', hamster: '🐹 仓鼠', bird: '🐦 小鸟' };
+  const names = { 
+    dog: '🐕 狗狗', 
+    cat: '🐱 猫咪', 
+    rabbit: '🐰 兔兔', 
+    hamster: '🐹 仓鼠', 
+    bird: '🐦 小鸟',
+    reptile: '🦎 爬行类',
+    other: '🌟 其他'
+  };
   return names[type] || type;
 }
 
 function getTypeEmoji(type) {
-  const emojis = { dog: '🐕', cat: '🐱', rabbit: '🐰', hamster: '🐹', bird: '🐦' };
+  const emojis = { 
+    dog: '🐕', 
+    cat: '🐱', 
+    rabbit: '🐰', 
+    hamster: '🐹', 
+    bird: '🐦',
+    reptile: '🦎',
+    other: '🌟'
+  };
   return emojis[type] || '🐾';
+}
+
+function getPortraitBadge(pet) {
+  if (pet.hasAIPortrait) return '<span class="portrait-badge ai">✨ AI肖像</span>';
+  if (pet.originalPhoto) return '<span class="portrait-badge photo">📷 真实照片</span>';
+  return '<span class="portrait-badge none">🎲 默认头像</span>';
 }
 
 function formatTime(timestamp) {

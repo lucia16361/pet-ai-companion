@@ -82,6 +82,7 @@
               <div class="profile-actions">
                 <button class="btn btn-outline btn-sm" onclick="generateStoryline()">📖 生成剧情</button>
                 <button class="btn btn-outline btn-sm" onclick="generateMultiStory()">👥 多宠互动</button>
+                <button class="btn btn-secondary btn-sm" id="aiPortraitBtn" onclick="requestAIPortrait()" disabled>🎨 AI生成肖像</button>
               </div>
             </div>
           </div>
@@ -162,13 +163,51 @@
                 <span class="type-emoji">🐦</span>
                 <span class="type-name">小鸟</span>
               </div>
+              <div class="type-option" data-type="reptile" onclick="selectType('reptile')">
+                <span class="type-emoji">🦎</span>
+                <span class="type-name">爬行类</span>
+              </div>
+              <div class="type-option" data-type="other" onclick="selectType('other')">
+                <span class="type-emoji">🌟</span>
+                <span class="type-name">其他</span>
+              </div>
             </div>
           </div>
 
           <!-- 步骤2: 详细信息 -->
           <div id="petDetailsForm" class="hidden">
             <div class="form-section">
-              <label class="form-label">给你的宠物起个名字</label>
+              <label class="form-label">上传真实宠物照片（AI会根据照片生成肖像）</label>
+              <div class="photo-upload-area" id="photoUploadArea" onclick="document.getElementById('petPhoto').click()">
+                <div class="photo-placeholder" id="photoPlaceholder">
+                  <span class="photo-icon">📷</span>
+                  <p>点击上传宠物照片</p>
+                  <p class="photo-hint">支持 JPG / PNG / WEBP，最大 5MB</p>
+                </div>
+                <img id="photoPreview" class="photo-preview hidden" alt="宠物照片预览">
+                <button type="button" class="photo-remove hidden" id="photoRemove" onclick="event.stopPropagation(); removePhoto()">✕</button>
+              </div>
+              <input type="file" id="petPhoto" class="hidden" accept="image/*" onchange="handlePhotoUpload(event)">
+              <div class="photo-status" id="photoStatus"></div>
+            </div>
+
+              <div class="form-section">
+                <label class="form-label">上传真实宠物照片（AI会根据照片生成肖像）</label>
+                <div class="photo-upload-area" id="photoUploadArea" onclick="document.getElementById('petPhoto').click()">
+                  <div class="photo-placeholder" id="photoPlaceholder">
+                    <span class="photo-icon">📷</span>
+                    <p>点击上传宠物照片</p>
+                    <p class="photo-hint">支持 JPG / PNG / WEBP，最大 5MB</p>
+                  </div>
+                  <img id="photoPreview" class="photo-preview hidden" alt="宠物照片预览">
+                  <button type="button" class="photo-remove hidden" id="photoRemove" onclick="event.stopPropagation(); removePhoto()">✕</button>
+                </div>
+                <input type="file" id="petPhoto" class="hidden" accept="image/*" onchange="handlePhotoUpload(event)">
+                <div class="photo-status" id="photoStatus"></div>
+              </div>
+
+              <div class="form-section">
+                <label class="form-label">给你的宠物起个名字</label>
               <input type="text" class="form-input" id="petName" placeholder="例如：小豆豆、毛球、布丁..." maxlength="10">
             </div>
             
