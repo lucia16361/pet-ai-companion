@@ -225,6 +225,18 @@ body {
 }
 .message-time { font-size: 11px; color: var(--text-light); margin-top: 4px; }
 
+/* 打字机光标动画 */
+.typing-cursor {
+  display: inline;
+  color: var(--primary);
+  animation: blink 0.8s infinite;
+  font-weight: bold;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 .level-up-badge {
   text-align: center; padding: 8px;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);

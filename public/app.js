@@ -227,17 +227,39 @@ async function sendMessage() {
       setTimeout(() => loadPetProfile(state.currentPetId), 500);
     }
     
-    // 显示宠物回复
+    // 显示宠物回复 - 打字机动画
     const pet = state.pets.find(p => p.id === state.currentPetId);
-    container.innerHTML += `
-      <div class="message pet">
-        <div class="message-avatar">${pet ? getTypeEmoji(pet.type) : '🐾'}</div>
-        <div>
-          <div class="message-bubble">${escapeHtml(result.petResponse)}</div>
-          <div class="message-time">刚刚</div>
-        </div>
+    const petMsgDiv = document.createElement('div');
+    petMsgDiv.className = 'message pet';
+    petMsgDiv.innerHTML = `
+      <div class="message-avatar">${pet ? getTypeEmoji(pet.type) : '🐾'}</div>
+      <div>
+        <div class="message-bubble"><span class="typing-cursor">▊</span></div>
+        <div class="message-time">刚刚</div>
       </div>
     `;
+    container.appendChild(petMsgDiv);
+    
+    // 打字机效果
+    const bubble = petMsgDiv.querySelector('.message-bubble');
+    const fullText = result.petResponse;
+    let charIndex = 0;
+    const typingSpeed = 30 + Math.random() * 40; // 30-70ms 随机速度，更自然
+    
+    await new Promise(resolve => {
+      const typeChar = () => {
+        if (charIndex < fullText.length) {
+          charIndex++;
+          bubble.innerHTML = escapeHtml(fullText.substring(0, charIndex)) + '<span class="typing-cursor">▊</span>';
+          container.scrollTop = container.scrollHeight;
+          setTimeout(typeChar, typingSpeed);
+        } else {
+          bubble.innerHTML = escapeHtml(fullText);
+          resolve();
+        }
+      };
+      typeChar();
+    });
     
     container.scrollTop = container.scrollHeight;
     
